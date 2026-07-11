@@ -26,7 +26,7 @@ trust fast, because every comment it leaves is worth reading.
 
 **1. Clone and enter the repo**
 ```bash
-git clone <your-repo-url>
+git clone "https://github.com/akashkuushwahaa/code-review-agent"
 cd code-review-agent
 ```
 
