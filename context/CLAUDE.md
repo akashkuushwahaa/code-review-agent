@@ -75,3 +75,6 @@ Run this before doing anything else:
 2. Read `PROGRESS.md`
 3. Open the `phases/` file for the next `Not Started` phase
 4. Confirm the plan with the user if anything is ambiguous, then proceed
+
+## Git Guidelines
+- Never add "Co-Authored-By" lines or AI attribution tags to git commits or pull requests.
