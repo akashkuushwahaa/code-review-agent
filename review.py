@@ -303,17 +303,53 @@ def run(pr_url: str, severity_threshold: str = "medium", dry_run: bool = False):
     return all_findings
 
 
-if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--dry-run"]
-    dry_run = "--dry-run" in sys.argv[1:]
+def _truthy(val) -> bool:
+    return str(val or "").strip().lower() in ("1", "true", "yes", "on")
 
-    if not args:
+
+def _pr_url_from_event():
+    """In GitHub Actions, derive the PR URL from the event payload.
+
+    On a `pull_request` event the runner writes the event JSON to the path in
+    GITHUB_EVENT_PATH; `pull_request.html_url` is exactly the URL the CLI
+    already accepts. Returns None when not running in Actions.
+    """
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path or not os.path.exists(event_path):
+        return None
+    try:
+        with open(event_path, encoding="utf-8") as fh:
+            event = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return (event.get("pull_request") or {}).get("html_url")
+
+
+if __name__ == "__main__":
+    # Print UTF-8 regardless of platform — the summary contains a 🔒 emoji and
+    # em-dashes that crash the default cp1252 console on Windows. Degrade
+    # (replace) rather than raise if the stream can't be reconfigured.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+    # Input resolution only — the review logic itself is unchanged.
+    # Precedence: explicit CLI args (manual use) > environment (CI) > event file.
+    argv = sys.argv[1:]
+    dry_run = "--dry-run" in argv or _truthy(os.environ.get("REVIEW_DRY_RUN"))
+    args = [a for a in argv if a != "--dry-run"]
+
+    pr_url = args[0] if args else (os.environ.get("PR_URL") or _pr_url_from_event())
+    if not pr_url:
         print("Usage: python review.py <pull-request-url> [severity_threshold] [--dry-run]")
         print("Example: python review.py https://github.com/owner/repo/pull/123 medium")
+        print("In GitHub Actions: set PR_URL, or run on a pull_request event.")
         sys.exit(1)
 
-    pr_url = args[0]
-    threshold = args[1] if len(args) > 1 else "medium"
+    threshold = args[1] if len(args) > 1 else os.environ.get("REVIEW_SEVERITY_THRESHOLD", "medium")
+    threshold = threshold.strip().lower()
     if threshold not in VALID_THRESHOLDS:
         print(f"Invalid severity threshold: {threshold!r}. Choose one of {VALID_THRESHOLDS}.")
         sys.exit(1)

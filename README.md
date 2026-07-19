@@ -19,6 +19,7 @@ trust fast, because every comment it leaves is worth reading.
 ├── cleanup.py                    # Deletes the bot's own comments from a PR (useful for re-running demos)
 ├── requirements.txt
 ├── .env.example                  # copy to .env and add your keys
+├── .github/workflows/review.yml  # Runs the agent automatically on every PR
 └── .gitignore
 ```
 
@@ -76,6 +77,41 @@ to the console, just not posted:
 python review.py https://github.com/owner/repo/pull/123 low
 ```
 
+You can also do a **dry run** — detect and print findings without posting
+anything to the PR (useful for testing):
+```bash
+python review.py https://github.com/owner/repo/pull/123 --dry-run
+```
+
+## Automated reviews (GitHub Actions)
+
+The agent runs automatically on every pull request via
+[`.github/workflows/review.yml`](.github/workflows/review.yml) — no need to
+run it by hand. It triggers on `opened`, `synchronize` (new pushes), and
+`reopened` events, then posts the same inline + summary comments a manual run
+would.
+
+**One-time setup:**
+
+1. Add your OpenAI key as a repository secret — GitHub → Settings → Secrets
+   and variables → Actions → **New repository secret**, named
+   `OPENAI_API_KEY`. (The `GITHUB_TOKEN` the workflow uses is provided
+   automatically by Actions; you don't create it.)
+2. *(Optional)* Add repository **variables** to tune behavior without editing
+   YAML:
+   - `REVIEW_SEVERITY_THRESHOLD` — `low` / `medium` / `high` (default `medium`)
+   - `REVIEW_DRY_RUN` — set to `true` to detect-only while you confirm the
+     wiring, then remove it to let the bot post for real.
+
+**Recommended first run:** set `REVIEW_DRY_RUN=true`, open a test PR, and
+check the Actions log shows the findings it *would* post. Once that looks
+right, remove the variable.
+
+**Fork PRs are not reviewed automatically — by design.** The workflow uses
+`pull_request` (not `pull_request_target`), so secrets are never exposed to
+untrusted fork code. To review a fork PR, use **Actions → Security Review →
+Run workflow** and paste the PR URL after you've eyeballed the diff.
+
 ## What it checks for
 
 Scoped strictly to:
@@ -104,8 +140,11 @@ without stacking duplicate comments:
 ```bash
 python cleanup.py https://github.com/owner/repo/pull/123
 ```
-This deletes only the comments posted by your own token's account — safe
-to run even on a PR with comments from real reviewers.
+This deletes comments posted by the token's own account. It's only safe
+alongside human reviewer comments if the bot runs under a **dedicated GitHub
+account** — run with your personal token and it will delete your own review
+comments too. (It also won't work under the Actions `GITHUB_TOKEN`, whose
+identity doesn't resolve to a user login — `cleanup.py` is a local/demo tool.)
 
 ## Guardrails built in
 
