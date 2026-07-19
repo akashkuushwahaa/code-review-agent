@@ -22,3 +22,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Ignore local Claude settings, but version the installed skills
+.claude/*
+!.claude/skills/
