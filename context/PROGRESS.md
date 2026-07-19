@@ -5,7 +5,7 @@ the summary column to one line — details belong in the phase's own file.
 
 | # | Phase | Status | Started | Completed | Summary |
 |---|---|---|---|---|---|
-| 1 | GitHub Action trigger | Not Started | | | |
+| 1 | GitHub Action trigger | In Progress | 2026-07-19 | | Workflow + review.py Actions-input support built & tested locally; pending OPENAI_API_KEY secret + live PR run |
 | 2 | Eval harness | Not Started | | | |
 | 3 | RAG context | Not Started | | | |
 | 4 | Persistence | Not Started | | | |
@@ -23,4 +23,4 @@ leave the reason out of this table (keep this table scannable).
 _(Coding agent: update this line to name the phase you're actively working
 on, or leave as "None" between sessions.)_
 
-**Active phase:** None
+**Active phase:** Phase 1 — GitHub Action trigger
