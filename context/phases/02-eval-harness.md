@@ -1,8 +1,8 @@
 # Phase 2 — Eval Harness
 
-**Status:** Not Started
-**Started:**
-**Completed:**
+**Status:** Done
+**Started:** 2026-07-22
+**Completed:** 2026-07-22
 **Prerequisites:** Phase 1 done. Deliberately sequenced *before* RAG (Phase 3)
 so there's a baseline score to measure RAG against — you cannot prove RAG
 helped without a "before" number. Does NOT require persistence: `eval.py`
@@ -41,19 +41,14 @@ comes first: run eval now to capture a baseline, then re-run it after RAG.
   framework for this
 
 ## Tasks
-- [ ] Create `eval/` folder with labeled examples (format: one JSON/YAML
-      file per example, PR reference + expected findings list)
-- [ ] Write `eval.py` — imports `review.py` and runs the agent in detect-only
-      mode using the existing `--dry-run` flag / `run(..., dry_run=True)`
-      (already added; `review.py` is import-safe so this needs no live
-      GitHub posting) against each example
-- [ ] Implement matching logic: a detected finding counts as a match if
-      same file + same issue category, line within a small tolerance
-- [ ] Compute and print precision, recall, F1 across the set
-- [ ] Add a `--verbose` mode that shows false positives and false negatives
-      explicitly (this is the useful debugging output, not just the score)
-- [ ] Document results (current score) in root `README.md` or a
-      `EVAL_RESULTS.md`
+- [x] Create `eval/` folder with labeled examples — 15 cases as one JSON per
+      example in `eval/cases/` + a diff fixture in `eval/diffs/`
+- [x] Write `eval.py` — imports `review.py` and calls `review_file()`
+      directly (detect-only by construction; never touches GitHub)
+- [x] Implement matching logic: same issue category + line within ±3
+- [x] Compute and print precision, recall, F1 (overall + per category)
+- [x] Add a `--verbose` mode listing every false positive and false negative
+- [x] Document results in `EVAL_RESULTS.md` + a README summary
 
 ## Acceptance criteria
 - `python eval.py` runs against the full labeled set and prints
@@ -66,4 +61,40 @@ comes first: run eval now to capture a baseline, then re-run it after RAG.
   number to beat.
 
 ## Notes
-_(Coding agent: log any deviations or follow-ups here as you build.)_
+
+### Build log (2026-07-22)
+
+**Baseline captured: precision 0.875, recall 1.000, F1 0.933** (`gpt-4o`,
+diff-only context, 15 cases / 14 findings). Snapshot in `eval/baseline.json`,
+full write-up in `EVAL_RESULTS.md`. This is the number Phase 3 must beat.
+
+Deviations and decisions, all small:
+1. **Prerequisite:** started while Phase 1 was still `In Progress`. Phase 1 is
+   code-complete and pushed; only live-trigger verification remains (needs the
+   `OPENAI_API_KEY` repo secret). Nothing in that blocks this phase — the
+   harness never touches the Action.
+2. **Local diff fixtures, not live PR URLs.** The phase allows "PR URL *or*
+   local diff file". Fixtures make the harness deterministic, fast, free of
+   GitHub API calls, and reproducible. `eval.py` still supports a `pr_url`
+   field per case so real PRs can be added later.
+3. **Calls `review_file()` directly rather than `run(..., dry_run=True)`.**
+   `review_file` is the actual unit under test; going through `run()` would
+   drag in GitHub fetching and posting for no benefit.
+4. **Added 4 clean/safe cases** with zero expected findings. Not explicitly
+   in the spec, but measuring only vulnerable code lets a detector score
+   perfectly while being unusable. These immediately caught a real defect.
+
+### Known weakness found (do NOT fix by prompt-patching)
+The agent flags **safe** `subprocess.run([...])` calls (argument list, no
+`shell=True`) as command injection — both false positives come from this. It
+pattern-matches on `subprocess` rather than on what makes it dangerous.
+Left unfixed on purpose: editing `REVIEW_PROMPT` to special-case an eval
+example is overfitting, and would show a gain the agent didn't earn. This is
+Phase 3's problem to solve honestly.
+
+### Follow-ups for later phases
+- `pass@k` / multi-run stability is not measured (single run per case);
+  reasonable future addition, out of scope per this phase's non-goals.
+- Recall of 1.000 is a ceiling artifact of an easy set, not proof of
+  completeness — worth adding harder cases (second-order SQLi, indirection)
+  before reading too much into it.
