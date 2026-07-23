@@ -1,0 +1,8 @@
+@@ -0,0 +1,7 @@
++import os
++
++def backup_database(db_name):
++    os.system("pg_dump " + db_name + " > /backups/" + db_name + ".sql")
++
++def list_backups():
++    return os.listdir("/backups")

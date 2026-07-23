@@ -1,0 +1,12 @@
+{
+  "id": "06-command-injection-shell-true",
+  "description": "Filename interpolated into a subprocess call with shell=True.",
+  "filename": "converter.py",
+  "patch_file": "diffs/06-command-injection-shell-true.diff",
+  "expected": [
+    {
+      "line": 5,
+      "category": "command_injection"
+    }
+  ]
+}

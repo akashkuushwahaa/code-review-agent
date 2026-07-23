@@ -1,0 +1,12 @@
+{
+  "id": "08-unsafe-eval",
+  "description": "User-supplied expression passed straight to eval().",
+  "filename": "calc.py",
+  "patch_file": "diffs/08-unsafe-eval.diff",
+  "expected": [
+    {
+      "line": 5,
+      "category": "unsafe_deserialization"
+    }
+  ]
+}

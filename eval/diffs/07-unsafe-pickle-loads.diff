@@ -1,0 +1,9 @@
+@@ -0,0 +1,8 @@
++import pickle
++import redis
++
++client = redis.Redis()
++
++def load_session(session_id):
++    raw = client.get(f"session:{session_id}")
++    return pickle.loads(raw)

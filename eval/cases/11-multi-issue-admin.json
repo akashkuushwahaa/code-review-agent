@@ -1,0 +1,20 @@
+{
+  "id": "11-multi-issue-admin",
+  "description": "Three distinct issues in one file: secret, SQL injection, command injection.",
+  "filename": "admin.py",
+  "patch_file": "diffs/11-multi-issue-admin.diff",
+  "expected": [
+    {
+      "line": 4,
+      "category": "hardcoded_secret"
+    },
+    {
+      "line": 7,
+      "category": "sql_injection"
+    },
+    {
+      "line": 11,
+      "category": "command_injection"
+    }
+  ]
+}

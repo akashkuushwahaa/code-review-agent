@@ -1,0 +1,10 @@
+@@ -0,0 +1,9 @@
++def get_user(conn, user_id):
++    cur = conn.cursor()
++    cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
++    return cur.fetchone()
++
++def find_by_email(conn, email):
++    cur = conn.cursor()
++    cur.execute("SELECT id FROM users WHERE email = ?", (email,))
++    return cur.fetchone()

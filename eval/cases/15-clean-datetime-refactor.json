@@ -1,0 +1,7 @@
+{
+  "id": "15-clean-datetime-refactor",
+  "description": "SAFE: pure datetime refactor with no security surface. No findings.",
+  "filename": "utils.py",
+  "patch_file": "diffs/15-clean-datetime-refactor.diff",
+  "expected": []
+}

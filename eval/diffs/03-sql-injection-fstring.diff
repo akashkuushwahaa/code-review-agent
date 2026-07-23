@@ -1,0 +1,10 @@
+@@ -0,0 +1,9 @@
++import sqlite3
++
++def get_user(conn, user_id):
++    cur = conn.cursor()
++    cur.execute(f"SELECT * FROM users WHERE id = {user_id}")
++    return cur.fetchone()
++
++def count_users(conn):
++    return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]

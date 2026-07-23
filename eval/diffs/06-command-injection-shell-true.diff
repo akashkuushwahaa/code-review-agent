@@ -1,0 +1,9 @@
+@@ -0,0 +1,8 @@
++import subprocess
++
++def convert_to_pdf(filename):
++    cmd = f"libreoffice --headless --convert-to pdf {filename}"
++    subprocess.run(cmd, shell=True, check=True)
++
++def get_version():
++    return subprocess.run(["libreoffice", "--version"], capture_output=True).stdout

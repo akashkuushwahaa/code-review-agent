@@ -1,0 +1,7 @@
+{
+  "id": "13-clean-subprocess-list",
+  "description": "SAFE: subprocess with argument list, no shell. Should produce no findings.",
+  "filename": "media.py",
+  "patch_file": "diffs/13-clean-subprocess-list.diff",
+  "expected": []
+}

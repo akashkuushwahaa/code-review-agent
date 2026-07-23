@@ -1,0 +1,11 @@
+@@ -0,0 +1,10 @@
++from flask import Flask, request, jsonify
++
++app = Flask(__name__)
++
++@app.route("/transfer", methods=["POST"])
++def transfer():
++    data = request.get_json()
++    amount = data["amount"]
++    account = data["to_account"]
++    return jsonify(process_transfer(account, amount))

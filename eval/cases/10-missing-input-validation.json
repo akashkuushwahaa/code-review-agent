@@ -1,0 +1,12 @@
+{
+  "id": "10-missing-input-validation",
+  "description": "Money-transfer endpoint trusts unvalidated JSON body fields.",
+  "filename": "api.py",
+  "patch_file": "diffs/10-missing-input-validation.diff",
+  "expected": [
+    {
+      "line": 8,
+      "category": "missing_input_validation"
+    }
+  ]
+}

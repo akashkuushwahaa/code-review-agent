@@ -1,0 +1,12 @@
+{
+  "id": "03-sql-injection-fstring",
+  "description": "User id interpolated into SQL via f-string.",
+  "filename": "db/queries.py",
+  "patch_file": "diffs/03-sql-injection-fstring.diff",
+  "expected": [
+    {
+      "line": 5,
+      "category": "sql_injection"
+    }
+  ]
+}

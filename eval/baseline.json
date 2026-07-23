@@ -1,0 +1,120 @@
+{
+  "model": "gpt-4o",
+  "summary": {
+    "tp": 14,
+    "fp": 2,
+    "fn": 0,
+    "precision": 0.875,
+    "recall": 1.0,
+    "f1": 0.9333333333333333,
+    "tolerance": 3,
+    "cases": 15
+  },
+  "cases": [
+    {
+      "id": "01-hardcoded-api-key",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "02-hardcoded-db-password",
+      "expected": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "03-sql-injection-fstring",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "04-sql-injection-concat",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "05-command-injection-os-system",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "06-command-injection-shell-true",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "07-unsafe-pickle-loads",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "08-unsafe-eval",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "09-unsafe-yaml-load",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "10-missing-input-validation",
+      "expected": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "11-multi-issue-admin",
+      "expected": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "12-clean-parameterized-sql",
+      "expected": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "13-clean-subprocess-list",
+      "expected": 0,
+      "tp": 0,
+      "fp": 2,
+      "fn": 0
+    },
+    {
+      "id": "14-clean-secrets-from-env",
+      "expected": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0
+    },
+    {
+      "id": "15-clean-datetime-refactor",
+      "expected": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+@@ -0,0 +1,9 @@
++from datetime import datetime, timezone
++
++def to_iso(dt):
++    if dt.tzinfo is None:
++        dt = dt.replace(tzinfo=timezone.utc)
++    return dt.isoformat()
++
++def parse_iso(value):
++    return datetime.fromisoformat(value)

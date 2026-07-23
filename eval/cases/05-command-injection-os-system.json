@@ -1,0 +1,12 @@
+{
+  "id": "05-command-injection-os-system",
+  "description": "Database name concatenated into an os.system shell command.",
+  "filename": "ops.py",
+  "patch_file": "diffs/05-command-injection-os-system.diff",
+  "expected": [
+    {
+      "line": 4,
+      "category": "command_injection"
+    }
+  ]
+}

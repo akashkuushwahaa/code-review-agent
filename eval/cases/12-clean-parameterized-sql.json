@@ -1,0 +1,7 @@
+{
+  "id": "12-clean-parameterized-sql",
+  "description": "SAFE: parameterized queries. Should produce no findings.",
+  "filename": "repo.py",
+  "patch_file": "diffs/12-clean-parameterized-sql.diff",
+  "expected": []
+}

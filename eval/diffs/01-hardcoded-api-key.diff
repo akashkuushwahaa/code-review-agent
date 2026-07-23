@@ -1,0 +1,9 @@
+@@ -0,0 +1,8 @@
++"""Application configuration."""
++
++import os
++
++PAYMENT_API_KEY = "a3f9c2e8b7d14056af92c3e7b8d05142"
++DEBUG = os.environ.get("DEBUG", "false") == "true"
++TIMEOUT_SECONDS = 30
++MAX_RETRIES = 3

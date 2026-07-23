@@ -17,6 +17,9 @@ trust fast, because every comment it leaves is worth reading.
 .
 ├── review.py                     # Main agent — reviews a PR and posts comments
 ├── cleanup.py                    # Deletes the bot's own comments from a PR (useful for re-running demos)
+├── eval.py                       # Eval harness — scores the agent's precision/recall/F1
+├── eval/                         # Labeled test set (diffs + expected findings)
+├── EVAL_RESULTS.md               # Current accuracy numbers and known weaknesses
 ├── requirements.txt
 ├── .env.example                  # copy to .env and add your keys
 ├── .github/workflows/review.yml  # Runs the agent automatically on every PR
@@ -132,6 +135,25 @@ by design, not a limitation.
    security-only prompt; returns structured JSON findings
 4. **Post** — creates inline PR review comments anchored to the exact
    flagged line, plus one summary comment tallying findings by severity
+
+## Measuring accuracy
+
+"It seems to work" isn't a metric. The repo ships an eval harness that scores
+the agent against a labeled set of 15 diffs — 11 vulnerable (14 planted
+findings) and 4 deliberately clean, so false positives are measured and not
+just recall:
+
+```bash
+python eval.py --verbose
+```
+
+**Current baseline** (`gpt-4o`, diff-only context): **precision 0.875,
+recall 1.000, F1 0.933**. The only lost precision comes from the agent
+flagging safe `subprocess` calls that use an argument list (no `shell=True`)
+as command injection.
+
+Full breakdown, the known weakness, and honest limitations:
+[EVAL_RESULTS.md](EVAL_RESULTS.md).
 
 ## Cleaning up after a test run
 

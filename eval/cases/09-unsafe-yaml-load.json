@@ -1,0 +1,12 @@
+{
+  "id": "09-unsafe-yaml-load",
+  "description": "Uploaded YAML parsed with the unsafe full Loader.",
+  "filename": "loader.py",
+  "patch_file": "diffs/09-unsafe-yaml-load.diff",
+  "expected": [
+    {
+      "line": 4,
+      "category": "unsafe_deserialization"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "01-hardcoded-api-key",
+  "description": "Payment API key hardcoded directly in config instead of read from the environment.",
+  "filename": "config.py",
+  "patch_file": "diffs/01-hardcoded-api-key.diff",
+  "expected": [
+    {
+      "line": 5,
+      "category": "hardcoded_secret"
+    }
+  ]
+}

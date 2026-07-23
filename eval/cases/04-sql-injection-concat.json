@@ -1,0 +1,12 @@
+{
+  "id": "04-sql-injection-concat",
+  "description": "Search term concatenated into a LIKE clause.",
+  "filename": "search.py",
+  "patch_file": "diffs/04-sql-injection-concat.diff",
+  "expected": [
+    {
+      "line": 2,
+      "category": "sql_injection"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "07-unsafe-pickle-loads",
+  "description": "Session blob from Redis deserialized with pickle.",
+  "filename": "cache.py",
+  "patch_file": "diffs/07-unsafe-pickle-loads.diff",
+  "expected": [
+    {
+      "line": 8,
+      "category": "unsafe_deserialization"
+    }
+  ]
+}

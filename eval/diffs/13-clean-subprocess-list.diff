@@ -1,0 +1,8 @@
+@@ -0,0 +1,7 @@
++import subprocess
++
++def thumbnail(src, dst):
++    subprocess.run(["ffmpeg", "-i", src, "-vf", "scale=200:-1", dst], check=True)
++
++def probe(src):
++    return subprocess.run(["ffprobe", src], capture_output=True, check=True).stdout
