@@ -139,21 +139,46 @@ by design, not a limitation.
 ## Measuring accuracy
 
 "It seems to work" isn't a metric. The repo ships an eval harness that scores
-the agent against a labeled set of 15 diffs — 11 vulnerable (14 planted
-findings) and 4 deliberately clean, so false positives are measured and not
+the agent against a labeled set of 18 diffs — 12 vulnerable (15 planted
+findings) and 6 deliberately clean, so false positives are measured and not
 just recall:
 
 ```bash
 python eval.py --verbose
 ```
 
-**Current baseline** (`gpt-4o`, diff-only context): **precision 0.875,
-recall 1.000, F1 0.933**. The only lost precision comes from the agent
-flagging safe `subprocess` calls that use an argument list (no `shell=True`)
-as command injection.
+**Current score** (`gpt-4o`): **precision 0.882, recall 1.000, F1 0.938**.
+
+Adding full-file context (see below) measurably improved this — same 18 cases,
+only the context varies:
+
+| | Diff only | + full-file context |
+|---|---|---|
+| Precision | 0.737 | **0.882** |
+| Recall | 0.933 | **1.000** |
+| F1 | 0.824 | **0.938** |
+
+The remaining lost precision comes from the agent flagging safe `subprocess`
+calls that use an argument list (no `shell=True`) as command injection.
 
 Full breakdown, the known weakness, and honest limitations:
 [EVAL_RESULTS.md](EVAL_RESULTS.md).
+
+## How much context the model gets
+
+Each file is reviewed with **both** its diff and the complete file at the PR's
+head commit, rendered with line numbers. The diff says *what changed*; the full
+file says *what it changed in the context of* — where a value comes from,
+whether a helper already validates it.
+
+Only lines the diff adds or changes are ever flagged; the full file is
+reference material, and the prompt says so explicitly. Context degrades
+gracefully: deleted files, binaries, and files too large simply fall back to
+diff-only review.
+
+This also fixed line anchoring. Counting `+` lines in a multi-hunk patch is
+error-prone, and the agent used to attach findings to blank lines; with a
+line-numbered file it reports the real line.
 
 ## Cleaning up after a test run
 

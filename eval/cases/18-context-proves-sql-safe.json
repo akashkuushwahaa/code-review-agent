@@ -1,0 +1,8 @@
+{
+  "id": "18-context-proves-sql-safe",
+  "description": "SAFE: ORDER BY column cannot be parameterized, so it is whitelisted by a helper defined earlier in the file. Diff alone looks like SQLi.",
+  "filename": "orders.py",
+  "patch_file": "diffs/18-context-proves-sql-safe.diff",
+  "source_file": "sources/18-context-proves-sql-safe.py",
+  "expected": []
+}

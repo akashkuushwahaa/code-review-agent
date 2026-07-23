@@ -1,0 +1,8 @@
+{
+  "id": "17-context-proves-subprocess-safe",
+  "description": "SAFE: added subprocess call uses a format validated by a whitelist helper defined earlier in the file. Diff alone looks risky.",
+  "filename": "images.py",
+  "patch_file": "diffs/17-context-proves-subprocess-safe.diff",
+  "source_file": "sources/17-context-proves-subprocess-safe.py",
+  "expected": []
+}

@@ -1,0 +1,13 @@
+{
+  "id": "16-context-reveals-sql-injection",
+  "description": "Added code calls a query builder defined earlier in the file that concatenates user input. Only visible with full-file context.",
+  "filename": "reports.py",
+  "patch_file": "diffs/16-context-reveals-sql-injection.diff",
+  "source_file": "sources/16-context-reveals-sql-injection.py",
+  "expected": [
+    {
+      "line": 15,
+      "category": "sql_injection"
+    }
+  ]
+}

@@ -80,6 +80,26 @@ def load_cases(case_filter=None) -> list:
     return cases
 
 
+def full_file_for_case(case: dict):
+    """The file's full contents, for cases that exercise full-file context.
+
+    An explicit `source_file` wins. Otherwise the fixture is reconstructed from
+    the patch itself — cases 01-15 are whole-new-file diffs, so every line of
+    the file is present in the hunk and reconstruction is exact.
+    """
+    if case.get("source_file"):
+        return (EVAL_DIR / case["source_file"]).read_text(encoding="utf-8")
+
+    lines = []
+    for raw in patch_for_case(case).splitlines():
+        if raw.startswith("@@") or raw.startswith(("---", "+++")):
+            continue
+        if raw.startswith("-"):
+            continue  # removed: not part of the new file
+        lines.append(raw[1:] if raw[:1] in ("+", " ") else raw)
+    return "\n".join(lines) + "\n"
+
+
 def patch_for_case(case: dict) -> str:
     """Local diff fixture, or fetch the diff from a real PR if given a URL."""
     if case.get("patch_file"):
@@ -99,10 +119,11 @@ def patch_for_case(case: dict) -> str:
 
 # ---------- Scoring ----------
 
-def score_case(case: dict, tolerance: int) -> dict:
+def score_case(case: dict, tolerance: int, use_context: bool = True) -> dict:
     """Run the agent on one case and match findings against the labels."""
     patch = patch_for_case(case)
-    detected = review.review_file(case["filename"], patch)
+    full_file = full_file_for_case(case) if use_context else None
+    detected = review.review_file(case["filename"], patch, full_file=full_file)
 
     for d in detected:
         d["category"] = categorize(d)
@@ -252,6 +273,9 @@ def main():
                         help="parallel review calls (default 4)")
     parser.add_argument("--json", dest="json_out",
                         help="write the summary to a JSON file (for before/after comparison)")
+    parser.add_argument("--no-context", action="store_true",
+                        help="review the diff alone, without full-file context "
+                             "(the pre-Phase-3 behavior; use for A/B comparison)")
     args = parser.parse_args()
 
     for stream in (sys.stdout, sys.stderr):
@@ -264,16 +288,20 @@ def main():
         sys.exit("OPENAI_API_KEY is not set (put it in .env or the environment).")
 
     cases = load_cases(args.case)
-    print(f"Running {len(cases)} case(s) against model '{review.MODEL}'...")
+    use_context = not args.no_context
+    mode = "diff + full-file context" if use_context else "diff only (no context)"
+    print(f"Running {len(cases)} case(s) against model '{review.MODEL}'  [{mode}]...")
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        results = list(pool.map(lambda c: score_case(c, args.tolerance), cases))
+        results = list(pool.map(
+            lambda c: score_case(c, args.tolerance, use_context), cases))
 
     summary = report(results, args.tolerance, args.verbose)
 
     if args.json_out:
         payload = {
             "model": review.MODEL,
+            "full_file_context": use_context,
             "summary": summary,
             "cases": [
                 {
