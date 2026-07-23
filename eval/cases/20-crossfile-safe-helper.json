@@ -1,0 +1,11 @@
+{
+  "id": "20-crossfile-safe-helper",
+  "description": "SAFE: added ORDER BY column is whitelisted by a validator imported from validators.py. Looks like SQLi without retrieval.",
+  "filename": "views.py",
+  "patch_file": "diffs/20-crossfile-safe-helper.diff",
+  "source_file": "sources/20-crossfile-safe-helper.py",
+  "repo_files": [
+    "repo/20-crossfile-safe-helper/validators.py"
+  ],
+  "expected": []
+}

@@ -1,0 +1,16 @@
+{
+  "id": "19-crossfile-unsafe-helper",
+  "description": "Added code calls a query builder imported from db.py that concatenates user input. Invisible without cross-file retrieval.",
+  "filename": "handlers.py",
+  "patch_file": "diffs/19-crossfile-unsafe-helper.diff",
+  "source_file": "sources/19-crossfile-unsafe-helper.py",
+  "repo_files": [
+    "repo/19-crossfile-unsafe-helper/db.py"
+  ],
+  "expected": [
+    {
+      "line": 11,
+      "category": "sql_injection"
+    }
+  ]
+}

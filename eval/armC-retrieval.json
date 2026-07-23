@@ -1,14 +1,14 @@
 {
   "model": "gpt-4o",
   "full_file_context": true,
-  "cross_file_retrieval": false,
+  "cross_file_retrieval": true,
   "summary": {
     "tp": 16,
-    "fp": 4,
+    "fp": 3,
     "fn": 0,
-    "precision": 0.8,
+    "precision": 0.8421052631578947,
     "recall": 1.0,
-    "f1": 0.888888888888889,
+    "f1": 0.9142857142857143,
     "tolerance": 3,
     "cases": 20
   },
@@ -150,7 +150,7 @@
       "id": "20-crossfile-safe-helper",
       "expected": 0,
       "tp": 0,
-      "fp": 1,
+      "fp": 0,
       "fn": 0
     }
   ]

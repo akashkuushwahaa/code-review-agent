@@ -29,6 +29,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import retrieval
 import review
 
 EVAL_DIR = Path(__file__).parent / "eval"
@@ -119,11 +120,31 @@ def patch_for_case(case: dict) -> str:
 
 # ---------- Scoring ----------
 
-def score_case(case: dict, tolerance: int, use_context: bool = True) -> dict:
+def repo_sources_for_case(case: dict) -> dict:
+    """Other files in the case's 'repo', keyed by the name they'd have there."""
+    sources = {}
+    for rel in case.get("repo_files", []):
+        sources[Path(rel).name] = (EVAL_DIR / rel).read_text(encoding="utf-8")
+    return sources
+
+
+def score_case(case: dict, tolerance: int, use_context: bool = True,
+               use_retrieval: bool = True) -> dict:
     """Run the agent on one case and match findings against the labels."""
     patch = patch_for_case(case)
     full_file = full_file_for_case(case) if use_context else None
-    detected = review.review_file(case["filename"], patch, full_file=full_file)
+
+    related = []
+    if use_retrieval and case.get("repo_files"):
+        index = retrieval.build_index(
+            repo_sources_for_case(case),
+            collection_name=f"case-{case['id']}",
+        )
+        related = retrieval.retrieve(index, patch, exclude_path=case["filename"])
+
+    detected = review.review_file(
+        case["filename"], patch, full_file=full_file, related=related
+    )
 
     for d in detected:
         d["category"] = categorize(d)
@@ -156,6 +177,13 @@ def score_case(case: dict, tolerance: int, use_context: bool = True) -> dict:
         "fp": unmatched_detected,
         "fn": false_negatives,
         "is_clean_case": not expected,
+        "retrieved": sorted({r["path"] for r in related}),
+        # A case that declares repo_files but retrieved nothing means retrieval
+        # silently failed. That looks identical to "retrieval didn't help", so
+        # it must be surfaced rather than quietly skewing the comparison.
+        "retrieval_expected_but_empty": bool(
+            use_retrieval and case.get("repo_files") and not related
+        ),
     }
 
 
@@ -215,6 +243,21 @@ def report(results: list, tolerance: int, verbose: bool):
             c_tp, c_fp, c_fn = cats[name]
             p, rc, cf1 = prf(c_tp, c_fp, c_fn)
             print(f"{name:<28} {c_tp:>4} {c_fp:>4} {c_fn:>4}   {p:>6.2f} {rc:>6.2f} {cf1:>6.2f}")
+
+    # What cross-file retrieval actually pulled in, per case.
+    with_retrieval = [r for r in results if r.get("retrieved")]
+    if with_retrieval:
+        print("\nCross-file retrieval pulled in:")
+        for r in with_retrieval:
+            print(f"  {r['id']:<34} <- {', '.join(r['retrieved'])}")
+
+    broken = [r for r in results if r.get("retrieval_expected_but_empty")]
+    if broken:
+        print("\n*** WARNING: retrieval was expected but returned nothing for: ***")
+        for r in broken:
+            print(f"  {r['id']}")
+        print("  These scores do NOT reflect retrieval. Investigate before")
+        print("  drawing any conclusion from this run.")
 
     # Clean cases isolate false-positive behavior.
     clean = [r for r in results if r["is_clean_case"]]
@@ -276,6 +319,9 @@ def main():
     parser.add_argument("--no-context", action="store_true",
                         help="review the diff alone, without full-file context "
                              "(the pre-Phase-3 behavior; use for A/B comparison)")
+    parser.add_argument("--no-retrieval", action="store_true",
+                        help="disable cross-file retrieval (Step B) while keeping "
+                             "full-file context; use for A/B comparison")
     args = parser.parse_args()
 
     for stream in (sys.stdout, sys.stderr):
@@ -289,12 +335,15 @@ def main():
 
     cases = load_cases(args.case)
     use_context = not args.no_context
-    mode = "diff + full-file context" if use_context else "diff only (no context)"
+    use_retrieval = not args.no_retrieval
+    mode = "diff only" if not use_context else "diff + full file"
+    if use_retrieval:
+        mode += " + cross-file retrieval"
     print(f"Running {len(cases)} case(s) against model '{review.MODEL}'  [{mode}]...")
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         results = list(pool.map(
-            lambda c: score_case(c, args.tolerance, use_context), cases))
+            lambda c: score_case(c, args.tolerance, use_context, use_retrieval), cases))
 
     summary = report(results, args.tolerance, args.verbose)
 
@@ -302,6 +351,7 @@ def main():
         payload = {
             "model": review.MODEL,
             "full_file_context": use_context,
+            "cross_file_retrieval": use_retrieval,
             "summary": summary,
             "cases": [
                 {

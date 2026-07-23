@@ -9,19 +9,20 @@ than eyeballed.
 python eval.py                  # score the whole labeled set
 python eval.py --verbose        # also print every false positive / negative
 python eval.py --no-context     # diff-only (pre-Phase-3 behavior), for A/B
+python eval.py --no-retrieval   # keep full-file context, drop cross-file retrieval
 python eval.py --case 03-sql    # run a single case
 python eval.py --json out.json  # save a snapshot for before/after comparison
 ```
 
 ## What's being measured
 
-The harness runs the agent's review step (`review.review_file`) against 18
+The harness runs the agent's review step (`review.review_file`) against 20
 labeled diffs in `eval/` and compares what it found against what it should
 have found.
 
-- **12 vulnerable cases** carrying 15 planted findings across all five
+- **13 vulnerable cases** carrying 16 planted findings across all five
   in-scope categories.
-- **6 clean/safe cases** with zero expected findings. These exist to measure
+- **7 clean/safe cases** with zero expected findings. These exist to measure
   **false positives** — safe code that merely *looks* risky (parameterized
   SQL, `subprocess` with an argument list, secrets read from env vars). A
   detector evaluated only on vulnerable code can score perfectly while being
@@ -79,6 +80,63 @@ code is safe). Extra context can just as easily *cause* false positives.
 All three flipped identically on an independent confirmation run, so this is
 structural, not sampling noise. On the unchanged cases 01–15, context altered
 nothing — it added no new false positives.
+
+## Phase 3 Step B — does cross-file retrieval help?
+
+Step A gave the model the whole reviewed file. Step B indexes the repo's
+*other* files with Chroma and injects the few chunks most related to the
+change — for when the deciding code lives in a different file entirely.
+
+Same 20 cases, the only variable is retrieval:
+
+| | Full file only | **+ cross-file retrieval** | Δ |
+|---|---|---|---|
+| **Precision** | 0.800 | **0.842** | +0.042 |
+| **Recall** | 1.000 | 1.000 | — |
+| **F1** | 0.889 | **0.914** | **+0.025** |
+| False positives | 4 | 3 | −1 |
+
+**Exactly one case changed** — case 20, the one built to require cross-file
+evidence. Everything else is byte-identical between arms, which is what a
+clean attribution looks like.
+
+Because one case is a thin basis for a claim, it was measured repeatedly in
+isolation:
+
+| Case 20 (safe code, whitelist validator in another file) | FP rate |
+|---|---|
+| Without retrieval | **6 / 6 trials flagged it** |
+| With retrieval | **0 / 6 trials flagged it** |
+
+That is the real result: retrieval reliably removes a false positive that is
+otherwise near-certain.
+
+Case 19 (the recall case) passed in *both* arms — the model flags an unknown
+imported helper feeding `conn.execute()` as SQL injection regardless. So it
+doesn't discriminate, and the honest read is that **only one of the two Step B
+cases actually measures anything.**
+
+### Two methodology problems found while measuring this
+
+Both produced a *wrong* answer before being caught, and both are worth
+recording:
+
+1. **The first version of the cases leaked the answer.** The helpers were
+   originally named `safe_sort_column` and `build_report_query` — the call
+   site alone told the model what it needed, so retrieval changed nothing and
+   the result looked like "retrieval doesn't help." Renaming them to
+   `normalize_column` and `resolve_report` (neutral, revealing nothing) made
+   the body genuinely necessary. **A retrieval benchmark is only valid if the
+   answer isn't already in the file under review.**
+2. **`chromadb.EphemeralClient()` is not thread-safe.** Two eval workers
+   building indexes concurrently raced on chromadb's shared System registry
+   (`'RustBindingsAPI' object has no attribute 'bindings'`, `KeyError
+   'ephemeral'`). `build_index` caught the error and returned `None`, so
+   retrieval silently vanished for some runs — indistinguishable from
+   "retrieval didn't help". Fixed with a single lock-guarded shared client.
+   `eval.py` now prints a loud warning when a case declares `repo_files` but
+   retrieves nothing, so a silent failure can never again be misread as a
+   negative result.
 
 ## Bigger finding: line anchoring on real PRs
 
@@ -141,7 +199,16 @@ earn.
 - **Recall of 1.000 is a ceiling artifact** of an easy set, not proof the agent
   finds everything.
 - **Cost.** Full-file context roughly doubles prompt size (~1.7× on the
-  fixtures), so reviews cost more tokens than diff-only.
+  fixtures), and retrieval adds embedding calls plus up to 3 extra chunks per
+  file. Reviews cost meaningfully more tokens than diff-only.
+- **Step B rests on one discriminating case.** Case 20 is the only case that
+  actually measures retrieval (case 19 passes either way). The 6-trial
+  repetition makes that one case trustworthy, but more cross-file cases —
+  especially multi-hop ones — are needed before generalizing.
+- **`chromadb` is heavy for what it does here.** It pulls ~31 transitive
+  packages (onnxruntime, kubernetes, opentelemetry) to serve an in-process
+  index over a handful of files. It's what the phase specified, and it works,
+  but the dependency cost is real and worth revisiting.
 
 ## Adding a case
 

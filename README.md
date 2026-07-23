@@ -16,6 +16,7 @@ trust fast, because every comment it leaves is worth reading.
 ```
 .
 ├── review.py                     # Main agent — reviews a PR and posts comments
+├── retrieval.py                  # Cross-file context: chunks + indexes the repo (Chroma)
 ├── cleanup.py                    # Deletes the bot's own comments from a PR (useful for re-running demos)
 ├── eval.py                       # Eval harness — scores the agent's precision/recall/F1
 ├── eval/                         # Labeled test set (diffs + expected findings)
@@ -147,16 +148,19 @@ just recall:
 python eval.py --verbose
 ```
 
-**Current score** (`gpt-4o`): **precision 0.882, recall 1.000, F1 0.938**.
+**Current score** (`gpt-4o`): **precision 0.842, recall 1.000, F1 0.914**.
 
-Adding full-file context (see below) measurably improved this — same 18 cases,
-only the context varies:
+Each layer of context was measured, not assumed. Same cases, only the context
+varies:
 
-| | Diff only | + full-file context |
-|---|---|---|
-| Precision | 0.737 | **0.882** |
-| Recall | 0.933 | **1.000** |
-| F1 | 0.824 | **0.938** |
+| | Diff only | + full file | + cross-file retrieval |
+|---|---|---|---|
+| Precision | 0.737 | 0.800 | **0.842** |
+| Recall | 0.933 | 1.000 | **1.000** |
+| F1 | 0.824 | 0.889 | **0.914** |
+
+(The first column is on the 18-case set; the last two on the 20-case set —
+compare within a set, not across.)
 
 The remaining lost precision comes from the agent flagging safe `subprocess`
 calls that use an argument list (no `shell=True`) as command injection.
@@ -179,6 +183,19 @@ diff-only review.
 This also fixed line anchoring. Counting `+` lines in a multi-hunk patch is
 error-prone, and the agent used to attach findings to blank lines; with a
 line-numbered file it reports the real line.
+
+**Cross-file retrieval** goes one step further, for when the deciding code
+isn't in the reviewed file at all. The repo's other sources are indexed in
+memory with Chroma — chunked by function/class, each chunk carrying its
+module's imports and constants so it reads on its own — and the few chunks
+most related to the change are included. That's how the agent can tell
+`normalize_column(x)` interpolated into SQL is safe, once it can see that
+`normalize_column` checks against a whitelist in another file.
+
+The index is built fresh per run (no sync infra to invalidate) and is
+entirely optional: if `chromadb` isn't installed or anything fails, the
+review continues on diff + full file. Set `REVIEW_DISABLE_RETRIEVAL=true` to
+turn it off.
 
 ## Cleaning up after a test run
 

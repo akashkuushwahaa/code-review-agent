@@ -1,3 +1,6 @@
 PyGithub>=2.3
 openai>=1.40
 python-dotenv>=1.0
+# Cross-file retrieval (Phase 3 Step B). In-process, no server.
+# Optional at runtime: review.py degrades to diff + full-file context if absent.
+chromadb>=1.0
