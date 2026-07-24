@@ -1,8 +1,8 @@
 # Phase 1 — GitHub Action Trigger
 
-**Status:** In Progress (code-complete; live GitHub verification pending)
+**Status:** Done
 **Started:** 2026-07-22
-**Completed:**
+**Completed:** 2026-07-24
 **Prerequisites:** None (this is the first phase)
 
 ## Goal
@@ -95,10 +95,38 @@ Confirmed `cleanup.py` then removes all bot comments cleanly (PR back to 0).
 Observed: a second run stacks duplicate comments — expected, and the concrete
 motivation for Phase 4 (persistence/dedup).
 
-**Remaining before this phase is Done (needs the live repo, not held by code):**
-1. Add the `OPENAI_API_KEY` repo secret.
-2. Push these commits so the workflow exists on GitHub.
-3. Open/update a test PR (ideally with `REVIEW_DRY_RUN=true` first) and
-   confirm the run triggers and posts the expected comments.
+### Live verification (2026-07-24) — DONE
+Verified end-to-end on real GitHub infrastructure, against
+`code-review-agent-demo` PR #1:
+- `pull_request` (reopened) event **triggered** the workflow.
+- Checkout, Python 3.12 setup, dependency install, secret injection
+  (`OPENAI_API_KEY`, `GITHUB_TOKEN`) and env resolution (`PR_URL`, threshold,
+  dry-run) all correct in the run log.
+- The agent posted 4 inline comments as `github-actions[bot]`, each anchored
+  to the exact vulnerable line, plus the summary comment. Green run, 48s.
+
+Things learned during verification:
+- **Two workflow shapes.** The workflow here assumes `review.py` is *in the
+  repo* — correct for the agent reviewing its OWN PRs (self-review). To review
+  a *different* repo (the demo), the workflow must first check out the agent.
+  The demo repo therefore uses a variant that does
+  `actions/checkout` of the public `code-review-agent` repo, then runs it.
+  Both are valid; this file's workflow is the self-review one.
+- **Fine-grained PAT + git push.** Creating `.github/workflows/*` needs either
+  a classic PAT with `workflow` scope or a fine-grained PAT with Workflows:
+  write. The fine-grained token pushed fine via the **contents API** but 403'd
+  over git-HTTPS with the `x-access-token:` helper — use the API for workflow
+  files with fine-grained tokens.
+- **Repo settings needed:** `OPENAI_API_KEY` secret, and Actions default
+  workflow permissions set to read+write so `GITHUB_TOKEN` can post comments.
+
+### Follow-ups
+- `actions/checkout@v4` / `setup-python@v5` emit a Node 20 deprecation
+  warning (forced to Node 24). Bump to current majors at some point — cosmetic.
+- The self-review workflow in THIS repo is mechanically identical to the
+  verified demo run except the checkout step, but has not itself fired on a
+  PR in `code-review-agent`. Low risk; note if a PR is ever opened here.
+- Known gap still open: `.yml`/`.yaml` are in `SKIP_EXTENSIONS`, so the
+  workflow file is not itself security-reviewed.
 
 _(Coding agent: log any further deviations or follow-ups here as you build.)_
