@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 from github import Github, Auth
 from openai import OpenAI
 
+import db
 import retrieval
 
 load_dotenv()  # loads variables from a .env file in the same folder, if present
@@ -275,24 +276,43 @@ def _sanitize(text, limit: int = 500) -> str:
     return text
 
 
-def post_findings(pr, filename: str, findings: list, commit, severity_threshold: str = "medium"):
-    """Post in-scope findings as inline comments.
+def post_findings(pr, filename: str, findings: list, commit,
+                  severity_threshold: str = "medium", conn=None, pr_url: str = None):
+    """Post in-scope findings as inline comments, recording each in the DB.
 
-    Returns (posted, failed): comments successfully posted, and ones that
-    were above threshold but failed to post (e.g. line not in the diff).
-    Threshold skips are counted in neither.
+    Every detected finding is recorded (posted or not). Above-threshold ones
+    that were already posted on a prior run are skipped (dedup). Returns
+    (posted, failed, skipped_dup):
+      posted      — comments successfully posted
+      failed      — above threshold but failed to post (e.g. line not in diff)
+      skipped_dup — above threshold but already posted on a previous run
+    Threshold skips are counted in none of these.
     """
     threshold_rank = {"low": 0, "medium": 1, "high": 2}
     min_rank = threshold_rank.get(severity_threshold, 1)
+    commit_sha = getattr(commit, "sha", None)
 
     posted = 0
     failed = 0
+    skipped_dup = 0
 
     for finding in findings:
         sev = finding.get("severity", "low")
-        if threshold_rank.get(sev, 0) < min_rank:
+        below = threshold_rank.get(sev, 0) < min_rank
+
+        # Record every detected finding (posted or not) before deciding to post.
+        row_id = db.record_finding(conn, pr_url, filename, finding, commit_sha, posted=False)
+
+        if below:
             print(f"  [skip] below threshold: {finding.get('issue')} ({sev})")
             continue
+
+        # Dedup: don't re-post something already posted on a prior run.
+        if db.already_posted(conn, pr_url, filename, finding.get("line"), finding.get("issue")):
+            print(f"  [skip] already posted on a prior run: {finding.get('issue')} (line {finding.get('line')})")
+            skipped_dup += 1
+            continue
+
         issue = _sanitize(finding.get("issue", "Security finding"))
         explanation = _sanitize(finding.get("explanation", ""))
         try:
@@ -304,11 +324,12 @@ def post_findings(pr, filename: str, findings: list, commit, severity_threshold:
                 line=finding["line"],
             )
             posted += 1
+            db.mark_posted(conn, row_id)
         except Exception as e:
             print(f"  [warn] failed to post comment on {filename}:{finding.get('line')} — {e}")
             failed += 1
 
-    return posted, failed
+    return posted, failed, skipped_dup
 
 
 # ---------- Orchestration ----------
@@ -330,8 +351,13 @@ def run(pr_url: str, severity_threshold: str = "medium", dry_run: bool = False):
     all_findings = {}
     total_posted = 0
     total_failed = 0
+    total_skipped_dup = 0
 
     head_sha = pr.head.sha
+
+    # Persistence: record findings and dedup against prior runs. Dry runs stay
+    # side-effect-free (no DB writes). Optional — degrades to no-dedup on error.
+    conn = None if dry_run else db.connect()
 
     # Cross-file retrieval index, built once per run over the repo's sources.
     # Entirely optional: if anything here fails the review still runs.
@@ -364,9 +390,13 @@ def run(pr_url: str, severity_threshold: str = "medium", dry_run: bool = False):
         all_findings[f.filename] = findings
 
         if not dry_run:
-            posted, failed = post_findings(pr, f.filename, findings, head_commit, severity_threshold)
+            posted, failed, skipped_dup = post_findings(
+                pr, f.filename, findings, head_commit, severity_threshold,
+                conn=conn, pr_url=pr_url,
+            )
             total_posted += posted
             total_failed += failed
+            total_skipped_dup += skipped_dup
 
     # Summary comment
     total_findings = sum(len(v) for v in all_findings.values())
@@ -384,6 +414,11 @@ def run(pr_url: str, severity_threshold: str = "medium", dry_run: bool = False):
                 f"(usually because the flagged line isn't part of the diff) — see the "
                 f"file/line details above."
             )
+        if total_skipped_dup:
+            post_line += (
+                f" {total_skipped_dup} finding(s) were already posted on a previous "
+                f"run and were not repeated."
+            )
         summary = (
             f"### 🔒 Automated Security Review\n\n"
             f"Found **{total_findings}** potential issue(s) across {len(all_findings)} file(s): "
@@ -400,16 +435,29 @@ def run(pr_url: str, severity_threshold: str = "medium", dry_run: bool = False):
             "safety — only a scoped advisory scan."
         )
 
+    # On a pure re-run — every finding already posted on a prior run, nothing
+    # new or failed — don't stack another identical summary comment.
+    nothing_new = (total_posted == 0 and total_failed == 0 and total_skipped_dup > 0)
+
     if dry_run:
         print("\n[dry run] Would post summary comment:\n")
         print(summary)
         print(f"\n[dry run] Total findings: {total_findings} (nothing posted).")
+    elif nothing_new:
+        print(
+            f"\nNothing new since a previous run — all {total_skipped_dup} finding(s) "
+            f"were already posted. Summary comment not repeated."
+        )
     else:
         pr.create_issue_comment(summary)
         print(
             f"\nPosted summary comment. Total findings: {total_findings}, "
-            f"comments posted: {total_posted}, failed to post: {total_failed}"
+            f"comments posted: {total_posted}, failed to post: {total_failed}, "
+            f"skipped as duplicates: {total_skipped_dup}"
         )
+
+    if conn is not None:
+        conn.close()
 
     return all_findings
 

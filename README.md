@@ -17,6 +17,7 @@ trust fast, because every comment it leaves is worth reading.
 .
 ├── review.py                     # Main agent — reviews a PR and posts comments
 ├── retrieval.py                  # Cross-file context: chunks + indexes the repo (Chroma)
+├── db.py                         # SQLite persistence: stores findings, dedups comments
 ├── cleanup.py                    # Deletes the bot's own comments from a PR (useful for re-running demos)
 ├── eval.py                       # Eval harness — scores the agent's precision/recall/F1
 ├── eval/                         # Labeled test set (diffs + expected findings)
@@ -196,6 +197,41 @@ The index is built fresh per run (no sync infra to invalidate) and is
 entirely optional: if `chromadb` isn't installed or anything fails, the
 review continues on diff + full file. Set `REVIEW_DISABLE_RETRIEVAL=true` to
 turn it off.
+
+## Persistence and deduplication
+
+Findings are stored in a local SQLite file (`findings.db`, gitignored) so the
+agent doesn't stack duplicate comments when it runs more than once on a PR — a
+repeated push, a re-triggered workflow, a manual re-run. Before posting, it
+checks whether the same finding (same PR, file, line, issue) was already
+posted, and skips it if so. A pure re-run posts nothing new and doesn't repeat
+the summary comment either.
+
+Every detection is recorded — even findings below the severity threshold that
+were never posted — so there's a full history to build on later.
+
+Schema (single table, created on first run):
+
+| column | meaning |
+|---|---|
+| `id` | row id |
+| `pr_url` | the reviewed PR |
+| `file`, `line` | where the finding is |
+| `severity`, `issue`, `explanation` | the finding itself |
+| `commit_sha` | PR head at detection time |
+| `posted` | 1 if this detection was posted as a comment |
+| `created_at`, `posted_at` | when recorded / when posted |
+
+Inspect it with any SQLite tool:
+```bash
+sqlite3 findings.db "SELECT file, line, severity, issue, posted FROM findings;"
+```
+
+Set `REVIEW_DB_PATH` to change the location. **Caveat:** dedup only works while
+the DB file persists between runs. On an ephemeral CI runner the file is gone
+after each run, so dedup doesn't carry across separate GitHub Actions runs
+until the DB is persisted (a Docker volume in a later phase, or a hosted DB).
+Locally it works.
 
 ## Cleaning up after a test run
 

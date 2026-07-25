@@ -3,6 +3,14 @@
 *.env
 !.env.example
 
+# --- Persistence (Phase 4): the findings DB is local state, never committed ---
+findings.db
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
 # --- Python ---
 __pycache__/
 *.py[cod]
