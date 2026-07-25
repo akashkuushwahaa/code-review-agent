@@ -1,10 +1,37 @@
 # Phase 5 — LangGraph Orchestration
 
-**Status:** Not Started
+**Status:** Deferred — not currently justified (revisit if a real branch appears)
 **Started:**
 **Completed:**
 **Prerequisites:** Phases 3 and 4 done. This phase only makes sense once
 there's real branching/multi-step logic to manage — don't start it earlier.
+
+## Deferral decision (2026-07-24)
+
+Reviewed against the actual pipeline and eval; deliberately skipped for now,
+per this phase's own guidance ("skip or reconsider if that decision doesn't
+clearly exist yet"). Reasons:
+
+1. **No branch to orchestrate.** The pipeline is a straight line with a
+   per-file loop: parse → list files → (fetch full file + cross-file retrieval
+   → review → post/dedup) → summary. Every conditional (dry-run,
+   below-threshold, already-posted, retrieval-unavailable) is a simple filter
+   or graceful fallback, not a multi-step decision.
+2. **The proposed branch targets an already-solved problem.** "Low-confidence
+   → fetch more context → re-review" — but Phase 3 already front-loads
+   full-file + cross-file context on the first pass. There is no obvious
+   additional context to fetch on a second pass.
+3. **It wouldn't fix the actual remaining weakness.** The one persistent error
+   is the `subprocess([...])`-is-safe false positive, which Phase 3 proved is a
+   model-reasoning flaw, not a context gap — more context doesn't fix it.
+4. **Nothing downstream needs it.** Phase 7's prerequisites are 1, 2, 4, 6 —
+   not 5. The plan was authored with Phase 5 as skippable.
+
+Adding LangGraph now would be a framework for its own sake, which this phase
+explicitly warns against. **Revisit if** a genuine branch emerges (e.g. an
+adaptive "fetch this specific undefined symbol and re-review" step, or a
+confidence signal worth gating on). If revisited primarily for demonstration
+value, do the minimal honest version and let the eval report whether it helped.
 
 ## Goal
 Introduce explicit multi-step orchestration (e.g. "if a finding is
