@@ -29,3 +29,9 @@ ENV/
 context/
 eval/
 EVAL_RESULTS.md
+
+# The frontend has its own build context/image — keep it out of the
+# agent and API images (node_modules/.next would bloat them).
+web/
+**/node_modules/
+**/.next/

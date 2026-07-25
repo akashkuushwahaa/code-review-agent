@@ -23,8 +23,10 @@ trust fast, because every comment it leaves is worth reading.
 ├── eval/                         # Labeled test set (diffs + expected findings)
 ├── EVAL_RESULTS.md               # Current accuracy numbers and known weaknesses
 ├── requirements.txt
+├── api/                          # FastAPI dashboard API (reads findings.db + eval snapshot)
+├── web/                          # Next.js dashboard (3 views over the API)
 ├── Dockerfile                    # Container image for the agent
-├── docker-compose.yml            # Runs the agent + persistent findings volume
+├── docker-compose.yml            # Agent + dashboard API + web, shared findings volume
 ├── .env.example                  # copy to .env and add your keys
 ├── .github/workflows/review.yml  # Runs the agent automatically on every PR
 └── .gitignore
@@ -90,13 +92,36 @@ anything to the PR (useful for testing):
 python review.py https://github.com/owner/repo/pull/123 --dry-run
 ```
 
-## Running it in Docker
+## Dashboard
+
+A small read-only dashboard (FastAPI + Next.js) shows what the agent has found:
+review history, per-PR findings, and the eval metrics.
+
+```bash
+docker compose up --build          # dashboard at http://localhost:3000
+docker compose run --rm agent https://github.com/owner/repo/pull/123
+```
+
+Run the agent (second command) to review a PR; the dashboard reads the same
+`findings` volume and updates. Three views:
+
+1. **Reviews** — every PR reviewed, with severity counts, most recent first.
+2. **Review detail** — each finding line-anchored to its file, with severity
+   and posted status.
+3. **Eval metrics** — precision / recall / F1 and per-case pass/fail from the
+   eval snapshot.
+
+To run it without Docker: `uvicorn api.main:app` (API on :8000) and, in `web/`,
+`npm install && npm run dev` (UI on :3000). Refresh the eval snapshot with
+`python eval.py --json api/eval_snapshot.json`.
+
+## Running the agent in Docker
 
 The agent and its dependencies (Chroma, SQLite) are containerized, so you can
 run it with no local Python setup:
 
 ```bash
-docker compose build
+docker compose build agent
 docker compose run --rm agent https://github.com/owner/repo/pull/123
 docker compose run --rm agent https://github.com/owner/repo/pull/123 high
 docker compose run --rm agent https://github.com/owner/repo/pull/123 --dry-run

@@ -11,7 +11,7 @@ the summary column to one line — details belong in the phase's own file.
 | 4 | Persistence | Done | 2026-07-24 | 2026-07-24 | SQLite findings store + dedup; verified 3x on demo PR #1 (no duplicate comments); DB gitignored |
 | 5 | LangGraph orchestration | Deferred | | | Not justified yet — pipeline is a straight line, no real branch; see phase file. Revisit if one appears |
 | 6 | Docker | Done | 2026-07-24 | 2026-07-25 | Dockerfile + compose (1 service, findings volume); built & verified end-to-end, dedup persists across containers (1.23GB image) |
-| 7 | Frontend | Not Started | | | |
+| 7 | Frontend | Done | 2026-07-25 | 2026-07-25 | FastAPI + Next.js dashboard (3 views over real findings + eval); full stack verified via docker compose |
 
 **Status values**: `Not Started` / `In Progress` / `Blocked` / `Done`
 
@@ -26,7 +26,7 @@ on, or leave as "None" between sessions.)_
 **Active phase:** None — Phases 1-4 all done. Agent score: precision 0.842 /
 recall 1.000 / F1 0.914 on 20 cases; findings persisted + deduped.
 
-Phase 5 (LangGraph) deferred. Phase 6 (Docker) done — built and verified
-end-to-end, dedup persists across containers. Next and last: **Phase 7
-(Frontend)** — FastAPI + Next.js dashboard over the persisted findings + eval
-metrics.
+**All phases complete** (Phase 5 LangGraph intentionally deferred — no real
+branch to justify it). The agent: auto-triggers on PRs (Phase 1), is measured
+at F1 0.914 (Phases 2-3), persists + dedups findings (Phase 4), runs in Docker
+(Phase 6), and has a FastAPI + Next.js dashboard over real data (Phase 7).

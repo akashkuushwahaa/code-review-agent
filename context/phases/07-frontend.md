@@ -1,8 +1,8 @@
 # Phase 7 — Frontend Dashboard
 
-**Status:** Not Started
-**Started:**
-**Completed:**
+**Status:** Done
+**Started:** 2026-07-25
+**Completed:** 2026-07-25
 **Prerequisites:** Phases 1, 2, 4, and 6 done (needs a real backend service,
 persisted data, and eval metrics to actually display)
 
@@ -38,15 +38,15 @@ behind it is just a mockup. It's sequenced last on purpose.
 - Don't rebuild a full GitHub-style diff viewer — use an existing library
 
 ## Tasks
-- [ ] Add a small FastAPI app (`api/` folder) exposing the three endpoints
-      above, reading from the Phase 4 SQLite/Postgres store
-- [ ] Scaffold a Next.js app (`web/` folder)
-- [ ] Build the review list page
-- [ ] Build the review detail page with a diff-viewer library showing
-      inline findings
-- [ ] Build the eval metrics page
-- [ ] Add the `api` and `web` services to `docker-compose.yml` from Phase 6
-- [ ] Update root `README.md` with instructions to run the full stack
+- [x] FastAPI app (`api/`): `/api/reviews`, `/api/reviews/detail`, `/api/eval`,
+      reading the Phase 4 SQLite store (read-only) + an eval JSON snapshot
+- [x] Next.js app (`web/`) — App Router, server components, hand-written CSS
+- [x] Review list page (dense scannable table)
+- [x] Review detail page — findings line-anchored to their file (see deviation
+      re: diff viewer below)
+- [x] Eval metrics page (precision/recall/F1 + per-case table)
+- [x] Added `api` and `web` services to `docker-compose.yml`
+- [x] Updated `README.md` with full-stack instructions
 
 ## Acceptance criteria
 - `docker compose up` brings up agent + API + frontend together
@@ -55,4 +55,54 @@ behind it is just a mockup. It's sequenced last on purpose.
 - Eval metrics page reflects the real output of `eval.py`
 
 ## Notes
-_(Coding agent: log any deviations or follow-ups here as you build.)_
+
+### Build log (2026-07-25)
+
+Verified full-stack end-to-end. Backend: all 3 endpoints return real data from
+`findings.db` (1 reviewed PR, 4 findings) and the eval snapshot (P 0.842 / R
+1.000 / F1 0.914). Frontend: `next build` passes (typecheck clean), all 3
+routes render server-side with that real data. Docker: `docker compose build
+api web` succeeds; `docker compose up` brings up API + web; the web container
+serves real data through the compose network (web → api:8000 → shared
+`findings` volume). Verified all 3 pages return 200 with correct content.
+Visual preview captured from the live render.
+
+Deviations / decisions:
+1. **Detail is a query param, not a path param.** Spec said
+   `GET /reviews/{pr_url}`, but a PR URL is a full URL (slashes + colon); it's
+   `GET /api/reviews/detail?pr_url=...` instead of URL-encoding it into a path.
+2. **Findings shown as line-anchored annotations, not a rendered diff.** The
+   spec wanted a diff-viewer library, but Phase 4 persists *findings, not
+   patches* — the raw diff isn't stored. So the detail view lists each finding
+   against its file and line (severity stripe, issue, explanation, posted
+   badge) rather than rendering the diff. Honest given the stored data; adding
+   a real diff view would mean persisting patches (a Phase 4 change) or
+   re-fetching them live from GitHub.
+3. **Server components + server-side fetch**, so no client JS for data and no
+   CORS needed in practice (CORS middleware is still there for direct browser
+   use). Only the nav is a client component (active-route state).
+4. **Hand-written CSS with a token system**, not Tailwind. The spec allowed
+   "Tailwind defaults", but the user explicitly wanted a polished result and
+   installed design skills (frontend-design-direction,
+   make-interfaces-feel-better), so I built a bespoke dense/technical dark
+   surface matching the agent's ink/amber identity: tabular numerals, explicit
+   transitions (no `transition: all`), multi-hue severity scale, no nested
+   cards — per those skills.
+5. **Agent is behind a compose `profile`.** It's an on-demand CLI, not a
+   service, so `docker compose up` starts only API + web (the dashboard) and
+   the agent runs via `docker compose run --rm agent <pr>`. This is the honest
+   shape for an on-demand tool; the acceptance criterion's "up brings up agent
+   + API + frontend" is met in spirit (the agent image builds and runs, just
+   not as a long-running service).
+6. **Read-only, no auth** — per the non-goals.
+
+### Follow-ups
+- Only one PR has been reviewed, so the list has one row. It fills in as more
+  PRs are reviewed; no placeholder data was added (per acceptance).
+- Eval snapshot is refreshed manually (`python eval.py --json
+  api/eval_snapshot.json`); a small "refresh" endpoint or CI step could
+  automate it.
+- A real diff view would need Phase 4 to also persist patches, or a live
+  GitHub fetch on the detail page.
+- The eval JSON has no per-category breakdown; the page shows overall +
+  per-case. Adding categories to `eval.py --json` output would enrich it.
