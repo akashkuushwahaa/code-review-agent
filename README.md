@@ -23,6 +23,8 @@ trust fast, because every comment it leaves is worth reading.
 ├── eval/                         # Labeled test set (diffs + expected findings)
 ├── EVAL_RESULTS.md               # Current accuracy numbers and known weaknesses
 ├── requirements.txt
+├── Dockerfile                    # Container image for the agent
+├── docker-compose.yml            # Runs the agent + persistent findings volume
 ├── .env.example                  # copy to .env and add your keys
 ├── .github/workflows/review.yml  # Runs the agent automatically on every PR
 └── .gitignore
@@ -87,6 +89,33 @@ anything to the PR (useful for testing):
 ```bash
 python review.py https://github.com/owner/repo/pull/123 --dry-run
 ```
+
+## Running it in Docker
+
+The agent and its dependencies (Chroma, SQLite) are containerized, so you can
+run it with no local Python setup:
+
+```bash
+docker compose build
+docker compose run --rm agent https://github.com/owner/repo/pull/123
+docker compose run --rm agent https://github.com/owner/repo/pull/123 high
+docker compose run --rm agent https://github.com/owner/repo/pull/123 --dry-run
+```
+
+- **Secrets** come from `.env` at run time via Compose's `env_file` — they are
+  never baked into the image (`.env` is `.dockerignore`'d).
+- **Dedup persists** across container runs: the findings DB lives on a named
+  volume (`findings` → `/data/findings.db`), which fixes the ephemeral-runner
+  gap from the persistence section above. Inspect it with:
+  ```bash
+  docker compose run --rm --entrypoint sqlite3 agent /data/findings.db \
+    "SELECT file, line, issue, posted FROM findings;"
+  ```
+- The agent is an on-demand CLI, so `docker compose run` is the right verb, not
+  `docker compose up` (which runs it with no arguments and just prints usage).
+- The **eval harness** and **GitHub Action** are not containerized — eval is a
+  local dev tool, and the Action already runs on GitHub's own runners. Both use
+  the same agent code.
 
 ## Automated reviews (GitHub Actions)
 

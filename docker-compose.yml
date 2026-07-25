@@ -1,0 +1,30 @@
+# Runs the security review agent in a container.
+#
+# The agent is on-demand — invoke it with a PR URL, it reviews, it exits:
+#
+#   docker compose run --rm agent https://github.com/owner/repo/pull/123
+#   docker compose run --rm agent https://github.com/owner/repo/pull/123 high
+#   docker compose run --rm agent https://github.com/owner/repo/pull/123 --dry-run
+#
+# (`docker compose up` runs it with no arguments, which just prints usage —
+# this is a CLI tool, not a long-running service, so `run` is the right verb.)
+
+services:
+  agent:
+    build: .
+    image: code-review-agent
+    # Secrets and config come from .env at run time — never baked into the
+    # image. .env is gitignored and .dockerignore'd.
+    env_file:
+      - .env
+    environment:
+      # Point the agent at the volume-backed DB path (overrides the .env value
+      # if one is set there).
+      REVIEW_DB_PATH: /data/findings.db
+    volumes:
+      # Persist the findings DB across runs so dedup survives container
+      # restarts — the gap Phase 4 flagged for ephemeral environments.
+      - findings:/data
+
+volumes:
+  findings:
